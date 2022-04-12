@@ -1,0 +1,2 @@
+CREATE DATABASE IF NOT EXISTS `library`;
+GRANT ALL PRIVILEGES ON *.* TO 'keycloak'@'%';

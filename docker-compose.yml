@@ -1,0 +1,164 @@
+version: '3.7'
+
+services:
+  # PORT SYNTAX : HOST_PORT:CONTAINER_PORT
+  # The 'setup' service runs a one-off script which initializes the
+  # 'logstash_internal' and 'kibana_system' users inside Elasticsearch with the
+  # values of the passwords defined in the '.env' file.
+  #
+  # This task is only performed during the *initial* startup of the stack. On all
+  # subsequent runs, the service simply returns immediately, without performing
+  # any modification to existing users.
+  setup:
+    build:
+      context: setup/
+      args:
+        ELASTIC_VERSION: ${ELASTIC_VERSION}
+    init: true
+    volumes:
+      - setup:/state:Z
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
+      LOGSTASH_INTERNAL_PASSWORD: ${LOGSTASH_INTERNAL_PASSWORD:-}
+      KIBANA_SYSTEM_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:-}
+    networks:
+      - elk
+
+  elasticsearch:
+    build:
+      context: elasticsearch/
+      args:
+        ELASTIC_VERSION: ${ELASTIC_VERSION}
+    volumes:
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,z
+      - elasticsearch:/usr/share/elasticsearch/data:z
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      ES_JAVA_OPTS: -Xmx256m -Xms256m
+      # Bootstrap password.
+      # Used to initialize the keystore during the initial startup of
+      # Elasticsearch. Ignored on subsequent runs.
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
+      # Use single node discovery in order to disable production mode and avoid bootstrap checks.
+      # see: https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
+      discovery.type: single-node
+    networks:
+      - elk
+
+  logstash:
+    build:
+      context: logstash/
+      args:
+        ELASTIC_VERSION: ${ELASTIC_VERSION}
+    volumes:
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro,Z
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro,Z
+      - ./logs/test.log:/usr/share/logs/application.log:ro,Z
+    ports:
+      - "5044:5044"
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+      - "9600:9600"
+    environment:
+      LS_JAVA_OPTS: -Xmx256m -Xms256m
+      LOGSTASH_INTERNAL_PASSWORD: ${LOGSTASH_INTERNAL_PASSWORD:-}
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    build:
+      context: kibana/
+      args:
+        ELASTIC_VERSION: ${ELASTIC_VERSION}
+    volumes:
+      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro,Z
+    ports:
+      - "5601:5601"
+    environment:
+      KIBANA_SYSTEM_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:-}
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+  #mariadb:
+  #  image: mariadb
+  #  ports:
+  #    - 3307:3306
+  #  volumes:
+  #    - ${PWD}/mariadb/data:/var/lib/mysql/
+  #    - ./mariadb/init:/docker-entrypoint-initdb.d
+  #  environment:
+  #    - MYSQL_ROOT_PASSWORD=changeme
+  #    - MYSQL_PASSWORD=changeme
+  #    - MYSQL_USER=etudiant
+  #    - MYSQL_DATABASE=keycloak
+
+  #keycloak:
+  #    image: jboss/keycloak
+  #    environment:
+  #      DB_VENDOR: mariadb
+  #      DB_ADDR: mariadb
+  #      DB_DATABASE: keycloak
+  #      DB_USER: etudiant
+  #      DB_PASSWORD: changeme
+  #      KEYCLOAK_USER: admin
+  #      KEYCLOAK_PASSWORD: changeme
+  #      JDBC_PARAMS: "connectTimeout=30000&useSSL=false"
+  #    depends_on:
+  #      - mariadb
+  #    ports:
+  #      - "9990:9990"
+  #      - "8080:8080"
+
+  mysql:
+      image: mysql:5.7
+      volumes:
+        - mysql_data:/var/lib/mysql
+        - ./mysql/init:/docker-entrypoint-initdb.d
+      environment:
+        MYSQL_ROOT_PASSWORD: changeme
+        MYSQL_DATABASE: keycloak
+        MYSQL_USER: keycloak
+        MYSQL_PASSWORD: changeme
+      ports:
+        - 3307:3306
+
+  keycloak:
+      image: quay.io/keycloak/keycloak:legacy
+      environment:
+        DB_VENDOR: MYSQL
+        DB_ADDR: mysql
+        DB_DATABASE: keycloak
+        DB_USER: keycloak
+        DB_PASSWORD: changeme
+        KEYCLOAK_USER: admin
+        KEYCLOAK_PASSWORD: Pa55w0rd
+        # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the MySQL JDBC driver documentation in order to use it.
+        #JDBC_PARAMS: "connectTimeout=30000"
+      ports:
+        - 8080:8080
+        - 9990:9990
+      depends_on:
+        - mysql
+
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8081:8080
+
+networks:
+  elk:
+    driver: bridge
+
+volumes:
+  setup:
+  elasticsearch:
+  mysql_data:
+    driver: local
