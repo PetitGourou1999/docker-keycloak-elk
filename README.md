@@ -66,3 +66,23 @@ Grâce au champ type, on peut créer deux index différents dans Elasticsearch p
 ## Configuration de Keycloak
 
 Afin de sécuriser le back-end et le front-end, nous utilisons Keycloak.
+Nous sommes dans le Royaume : MonSuperRoyaume.
+Nous avons deux clients qui représentent nos applications : MyApplicationAPI (le back), MyApplicationAngular (le front)
+
+<img width="1775" alt="image" src="https://user-images.githubusercontent.com/56508650/163182709-34f61925-f326-47c0-a996-4150b24788b8.png">
+
+
+Nous ajoutons ensuite des utilisateurs qui pourront se connecter à la plateforme et envoyer des requêtes API :
+
+<img width="1775" alt="image" src="https://user-images.githubusercontent.com/56508650/163182855-7922e6b4-17fb-4e0e-981d-1881a91bb14d.png">
+
+Enfin nous créons deux rôles : simple-user et simple-admin et les attribuons à nos utilisateurs 
+
+<img width="1775" alt="image" src="https://user-images.githubusercontent.com/56508650/163183026-a2d4a361-1fa8-42e0-88e4-b092f566737a.png">
+
+<img width="1775" alt="image" src="https://user-images.githubusercontent.com/56508650/163183066-a6311746-7cad-4c02-a8b3-b24857639e88.png">
+
+
+<img width="1775" alt="image" src="https://user-images.githubusercontent.com/56508650/163183095-831660cf-a0fe-4e0b-956c-f699b12f16dc.png">
+
+
